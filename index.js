@@ -5,17 +5,15 @@ require("dotenv").config();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("./models/user");
+const authenticate = require("./middleware/auth");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// JWT_SECRET is set
-// if (!process.env.JWT_SECRET) {
-//   console.error(
-//     "Error: JWT_SECRET is not defined in the environment variables."
-//   );
-//   process.exit(1);
-// }
+// Protected route
+app.get("/protected", authenticate, (req, res) => {
+  res.json({ message: "This is a protected route", user: req.user });
+});
 
 // Check environment variables
 if (!process.env.JWT_SECRET) {
