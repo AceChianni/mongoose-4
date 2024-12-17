@@ -1,3 +1,5 @@
+// index.js
+
 const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
@@ -6,6 +8,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("./models/user");
 const authenticate = require("./middleware/auth");
+const { authorize, ROLE } = require("./middleware/role");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -38,7 +41,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the server!");
 });
 
-// Register a new user
+// REGISTER USER
 app.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -67,7 +70,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Login a user
+// LOGIN USER!!
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -78,13 +81,16 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // Compare passwords
+    // Compare passwords using bcrypt.compare (async/await)
     const isMatch = await bcrypt.compare(password, user.password);
+
+    console.log("Passwords match:", isMatch); // This should log 'true' if they match
+
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // Generate JWT token
+    // Generate JWT token if passwords match
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -93,17 +99,33 @@ app.post("/login", async (req, res) => {
 
     res.status(200).json({ message: "Login successful", token });
   } catch (error) {
-    console.error("Error during login:", error.message); // Log the error
+    console.error("Error during login:", error.message);
     res.status(500).json({ error: "An internal server error occurred" });
   }
 });
 
-// Start Express server
+// PROTECTED ROUTE
+app.get("/dashboard", authenticate, (req, res) => {
+  res.json({
+    message: "Welcome to the dashboard!",
+    user: req.user,
+  });
+});
+
+// ADMIN ROUTE
+app.get("/admin", authenticate, authorize([ROLE.ADMIN]), (req, res) => {
+  res.json({
+    message: "Welcome to the Admin Dashboard!",
+    user: req.user,
+  });
+});
+
+// START SERVER
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
 
-// Connect to MongoDB
+// CONNECT MONGODB
 mongoose
   .connect(process.env.MONGO_DB_URI)
   .then(() => {
